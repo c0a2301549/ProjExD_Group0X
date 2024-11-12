@@ -142,14 +142,14 @@ class Enemy(pg.sprite.Sprite):
             return ExpOrb(self.rect.center)
         return None
 
-    def shoot(self, target_pos, current_time, en_bullets):
+    def shoot(self, target_pos, current_time, en_bullets, dx, dy):
         if current_time - self.last_shot_time > self.shoot_interval:
             if self.shoot_pattern == "spread":
                 # 円形に弾を発射
                 for angle in range(0, 360, 10):  # 45度間隔で発射
                     rad = math.radians(angle)
-                    bullet_dx = math.cos(rad) * self.bullet_speed
-                    bullet_dy = math.sin(rad) * self.bullet_speed
+                    bullet_dx = math.cos(rad) * self.bullet_speed - dx
+                    bullet_dy = math.sin(rad) * self.bullet_speed - dy
                     en_bullets.add(En_Bullet(self.rect.center, (bullet_dx, bullet_dy), self.bullet_color, self.bullet_radius))
             elif self.shoot_pattern == "direct":
                 # ターゲットに直進
@@ -159,8 +159,8 @@ class Enemy(pg.sprite.Sprite):
                 if distance > 0:
                     dx /= distance
                     dy /= distance
-                    bullet_dx = dx * self.bullet_speed
-                    bullet_dy = dy * self.bullet_speed
+                    bullet_dx = dx * self.bullet_speed - dx
+                    bullet_dy = dy * self.bullet_speed - dy
                     en_bullets.add(En_Bullet(self.rect.center, (bullet_dx, bullet_dy), self.bullet_color, self.bullet_radius))
             elif self.shoot_pattern == "wave":
                 # ターゲットの方向に波状に弾を発射
@@ -169,16 +169,16 @@ class Enemy(pg.sprite.Sprite):
                 base_angle = math.degrees(math.atan2(dy, dx))
                 for angle in range(-30, 31, 15):  # -30度から30度まで15度間隔で発射
                     rad = math.radians(base_angle + angle)
-                    bullet_dx = math.cos(rad) * self.bullet_speed
-                    bullet_dy = math.sin(rad) * self.bullet_speed
+                    bullet_dx = math.cos(rad) * self.bullet_speed - dx
+                    bullet_dy = math.sin(rad) * self.bullet_speed - dy
                     en_bullets.add(En_Bullet(self.rect.center, (bullet_dx, bullet_dy), self.bullet_color, self.bullet_radius))
             elif self.shoot_pattern == "random":
                 # ランダム方向に弾を発射
                 for _ in range(8):  # 8方向にランダム発射
                     angle = random.uniform(0, 360)
                     rad = math.radians(angle)
-                    bullet_dx = math.cos(rad) * self.bullet_speed
-                    bullet_dy = math.sin(rad) * self.bullet_speed
+                    bullet_dx = math.cos(rad) * self.bullet_speed - dx
+                    bullet_dy = math.sin(rad) * self.bullet_speed - dy
                     en_bullets.add(En_Bullet(self.rect.center, (bullet_dx, bullet_dy), self.bullet_color, self.bullet_radius))
             print(f"Shot {len(en_bullets)} bullets")
             self.last_shot_time = current_time
@@ -494,7 +494,7 @@ def main():
                 enemy.update(bird.rect.center, dx, dy)
                 # 敵が一定距離に達したら弾を発射
                 current_time = pg.time.get_ticks()
-                new_bullets = enemy.shoot(bird.rect.center, current_time, en_bullets)
+                new_bullets = enemy.shoot(bird.rect.center, current_time, en_bullets, dx, dy)
                 en_bullets.add(*new_bullets)
             
             if len(enemies) < 7:
