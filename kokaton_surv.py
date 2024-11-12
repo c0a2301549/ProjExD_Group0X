@@ -115,7 +115,9 @@ class Enemy(pg.sprite.Sprite):
         self.bullet_radius = bullet_radius  #弾の半径を設定
         self.en_hp = en_hp  #Hpを設定
 
-    def update(self, target_pos):
+    def update(self, target_pos, dx, dy):
+        self.rect.centerx -= dx #背景と同期
+        self.rect.centery -= dy
         dx = target_pos[0] - self.rect.centerx
         dy = target_pos[1] - self.rect.centery
         distance = math.hypot(dx, dy)
@@ -194,7 +196,9 @@ class En_Bullet(pg.sprite.Sprite):
         self.rect = self.image.get_rect(center=pos)
         self.direction = direction
 
-    def update(self):
+    def update(self, dx, dy):
+        self.rect.x -= dx #背景と同期
+        self.rect.y -= dy
         self.rect.x += self.direction[0]
         self.rect.y += self.direction[1]
         if not (0 <= self.rect.x <= WIDTH and 0 <= self.rect.y <= HEIGHT):
@@ -205,24 +209,25 @@ class Bullet(pg.sprite.Sprite):
     default_damage = 10
     def __init__(self, pos, target_pos) -> None:
         super().__init__()
-        self.image = pg.Surface((10, 10), pg.SRCALPHA) 
-        pg.draw.circle(self.image, (0, 255, 255), (5, 5), 5)
+        self.image = pg.Surface((10, 10)) 
+        self.image.fill((255, 255, 0))  # 色を設定
         self.rect = self.image.get_rect(center=pos)  # 弾の初期位置を設定
-        self.damage = Bullet.default_damage
+        self.speed = 10
 
         # ターゲットへの距離の計算
-        dx, dy = target_pos[0] - pos[0], target_pos[1] - pos[1]
-        distance = math.hypot(dx, dy)  # ターゲットまでの直線距離
+        dx = target_pos[0] - pos[0]
+        dy = target_pos[1] - pos[1]
+        distance = math.hypot(dx, dy)
+        # 距離がゼロでないことを確認
+        if distance == 0:
+            return  # もし距離がゼロならば弾を発射しない
+        self.dx = dx / distance * self.speed
+        self.dy = dy / distance * self.speed
 
-        if distance > 0:  # distanceが0でない場合のみ速度ベクトルを計算
-            self.speed = 10
-            self.velocity = (dx / distance * self.speed, dy / distance * self.speed)
-        else:
-            self.velocity = (0, 0)  # distanceが0の場合は移動しない
-
-    def update(self):
-        self.rect.x += self.velocity[0]
-        self.rect.y += self.velocity[1]
+    def update(self, dx=0, dy=0):
+        # self.rect.x += self.velocity[0]
+        # self.rect.y += self.velocity[1]
+        self.rect.move_ip(self.dx - dx, self.dy - dy)
         # 画面外に出た弾を削除
         if not (0 <= self.rect.x <= WIDTH and 0 <= self.rect.y <= HEIGHT):
             self.kill()  # spriteグループから削除
@@ -274,6 +279,9 @@ class Haikei:
         dx, dy = bird_rect.centerx - WIDTH // 2, bird_rect.centery - HEIGHT // 2
         self.background_x -= dx * 0.015  # 0.1は移動のスムーズさを調整する係数
         self.background_y -= dy * 0.015
+        dx *= 0.015
+        dy *= 0.015
+        return dx, dy
 
     def draw(self, screen):
         # キャラクター周辺の背景を無限に繰り返し表示
@@ -473,7 +481,7 @@ def main():
                     elif quit_button.collidepoint(mouse_pos):
                         return  # Quit the game
         
-        haikei.update(bird.rect)
+        dx, dy = haikei.update(bird.rect)
 
         haikei.draw(screen)
 
@@ -483,7 +491,7 @@ def main():
             # こうかとんの更新
             game_state = bird.update(mouse_pos, en_bullets)  # Update bird and check game state
             for enemy in enemies:
-                enemy.update(bird.rect.center)
+                enemy.update(bird.rect.center, dx, dy)
                 # 敵が一定距離に達したら弾を発射
                 current_time = pg.time.get_ticks()
                 new_bullets = enemy.shoot(bird.rect.center, current_time, en_bullets)
@@ -524,8 +532,8 @@ def main():
             # 更新処理
             mouse_pos = pg.mouse.get_pos()
             bird.update(mouse_pos, en_bullets)
-            enemies.update(bird.rect.center)
-            en_bullets.update()
+            enemies.update(bird.rect.center, dx, dy)
+            en_bullets.update(dx, dy)
             all_sprites.draw(screen)
             en_bullets.draw(screen)
             bullet_timer -= 1
@@ -534,7 +542,7 @@ def main():
             time_text = font.render(f"Time: {elapsed_time:.2f}", True, (0, 0, 139))
             
             all_sprites.draw(screen)
-            bullets.update()
+            bullets.update(dx, dy)
             bullets.draw(screen)
             screen.blit(time_text, (10, 50))
 
